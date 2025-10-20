@@ -19,14 +19,14 @@ jobs:
 
       - name: Test app with Doppler
         run: |
-          doppler run --command="python app/app.py" &
+          doppler run --project infra-pipeline-poa --config dev --command="python app/app.py" &
           sleep 3
           curl -f http://localhost:5000/health
           response=$(curl -s http://localhost:5000)
           if echo "$response" | grep -q '"newrelic_enabled": true'; then
             echo "✅ New Relic enabled via Doppler"
           else
-            echo "❌ New Relic not active — check Doppler config"
+            echo "❌ New Relic not active — check Doppler project/config"
             exit 1
           fi
         env:
