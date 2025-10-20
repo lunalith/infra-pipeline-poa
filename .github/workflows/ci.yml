@@ -26,7 +26,7 @@ jobs:
           if echo "$response" | grep -q '"newrelic_enabled": true'; then
             echo "✅ New Relic enabled via Doppler"
           else
-            echo "⚠️ New Relic not active — check Doppler config"
+            echo "❌ New Relic not active — check Doppler config"
             exit 1
           fi
         env:
