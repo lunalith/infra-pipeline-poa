@@ -17,16 +17,17 @@ jobs:
       - name: Install Doppler CLI
         run: curl -Ls --tlsv1.2 --proto "=https" --retry 3 https://cli.doppler.com/install.sh | sh
 
-      - name: Test app with Doppler (New Relic enabled)
+      - name: Test app with Doppler
         run: |
-          # Roda a app em background com secrets do Doppler
           doppler run --command="python app/app.py" &
           sleep 3
-
-          # Verifica se a app responde
           curl -f http://localhost:5000/health
-
-          # Verifica se o New Relic foi ativado (opcional, mas elegante)
-          curl -s http://localhost:5000 | grep -q '"newrelic_enabled": true' && echo "✅ New Relic enabled" || echo "⚠️ New Relic not active (check Doppler config)"
+          response=$(curl -s http://localhost:5000)
+          if echo "$response" | grep -q '"newrelic_enabled": true'; then
+            echo "✅ New Relic enabled via Doppler"
+          else
+            echo "⚠️ New Relic not active — check Doppler config"
+            exit 1
+          fi
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
