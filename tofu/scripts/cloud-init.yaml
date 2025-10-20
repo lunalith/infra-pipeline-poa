@@ -1,0 +1,52 @@
+#cloud-config
+
+# Atualizar sistema e instalar pacotes
+package_update: true
+package_upgrade: true
+
+packages:
+  - git
+  - python3
+  - python3-pip
+  - python3-venv
+  - nginx
+  - curl
+  - ufw
+  - fail2ban
+
+# Criar usuário para a aplicação
+users:
+  - name: appuser
+    groups: sudo, www-data
+    shell: /bin/bash
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+
+# Comandos a executar após boot
+runcmd:
+  # Configurar firewall
+  - ufw allow 22/tcp
+  - ufw allow 80/tcp
+  - ufw allow 443/tcp
+  - ufw allow ${app_port}/tcp
+  - ufw --force enable
+
+  # Instalar Docker (para deploy futuro)
+  - curl -fsSL https://get.docker.com -o get-docker.sh
+  - sh get-docker.sh
+  - usermod -aG docker appuser
+
+  # Instalar Doppler CLI
+  - curl -Ls --tlsv1.2 --proto "=https" https://cli.doppler.com/install.sh | sh
+
+  # Criar diretório da aplicação
+  - mkdir -p /opt/${project_name}
+  - chown -R appuser:appuser /opt/${project_name}
+
+  # Mensagem de sucesso
+  - echo "✅ Servidor ${project_name}-${environment} configurado com sucesso!" > /etc/motd
+
+# Reiniciar após configuração
+power_state:
+  mode: reboot
+  timeout: 300
+  condition: true
