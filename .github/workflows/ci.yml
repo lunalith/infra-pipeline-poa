@@ -14,8 +14,8 @@ jobs:
       - name: Install dependencies
         run: pip install -r app/requirements.txt
 
-      - name: Install Doppler CLI
-        run: sudo curl -Ls --tlsv1.2 --proto "=https" --retry 3 https://cli.doppler.com/install.sh | sh
+      - name: Install Doppler CLI (binary)
+        run: curl -Ls --tlsv1.2 --proto "=https" https://cli.doppler.com/install.sh | sh -s -- --no-package-manager
 
       - name: Test app with Doppler
         run: |
