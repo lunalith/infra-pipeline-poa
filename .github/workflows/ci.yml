@@ -1,33 +1,85 @@
 name: CI with Doppler & New Relic
-on: [push]
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
       - name: Install dependencies
-        run: pip install -r app/requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r app/requirements.txt
 
-      - name: Install Doppler CLI (binary)
-        run: curl -Ls --tlsv1.2 --proto "=https" https://cli.doppler.com/install.sh | sh -s -- --no-package-manager
+      - name: Install Doppler CLI
+        uses: dopplerhq/cli-action@v3
 
-      - name: Test app with Doppler
+      - name: Verify Doppler connection
+        run: doppler secrets --project infra-pipeline-poa --config dev --only-names
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+
+      - name: Start Flask app with Doppler
         run: |
           doppler run --project infra-pipeline-poa --config dev --command="python app/app.py" &
-          sleep 3
-          curl -f http://localhost:5000/health
+          APP_PID=$!
+          echo "APP_PID=$APP_PID" >> $GITHUB_ENV
+          
+          # Wait for app to be ready (max 30 seconds)
+          echo "⏳ Waiting for app to start..."
+          for i in {1..30}; do
+            if curl -sf http://localhost:5000/health > /dev/null 2>&1; then
+              echo "✅ App is ready!"
+              break
+            fi
+            sleep 1
+          done
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+
+      - name: Health check
+        run: |
+          response=$(curl -sf http://localhost:5000/health)
+          echo "Health check response: $response"
+          
+          if echo "$response" | grep -q '"status":"ok"' || echo "$response" | grep -q '"status": "ok"'; then
+            echo "✅ Health check passed"
+          else
+            echo "❌ Health check failed"
+            exit 1
+          fi
+
+      - name: Verify New Relic integration
+        run: |
           response=$(curl -s http://localhost:5000)
-          if echo "$response" | grep -q '"newrelic_enabled": true'; then
-            echo "✅ New Relic enabled via Doppler"
+          echo "App response: $response"
+          
+          if echo "$response" | grep -q '"newrelic_enabled":true' || echo "$response" | grep -q '"newrelic_enabled": true'; then
+            echo "✅ New Relic is enabled via Doppler"
           else
             echo "❌ New Relic not active — check Doppler project/config"
             exit 1
           fi
-        env:
-          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+
+      - name: Stop Flask app
+        if: always()
+        run: |
+          if [ ! -z "$APP_PID" ]; then
+            kill $APP_PID || true
+          fi
+          lsof -ti:5000 | xargs kill -9 || true
