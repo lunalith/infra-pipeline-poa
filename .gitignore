@@ -4,5 +4,27 @@ __pycache__/
 venv/
 .env
 
-# Secrets
-newrelic.ini
+# OpenTofu / Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraformrc
+terraform.rc
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.lock.hcl
+
+# OpenTofu específico
+.tofu/
+*.tofu.lock.hcl
+
+# Secrets e credenciais
+*.pem
+*.key
+.env
+.env.local
